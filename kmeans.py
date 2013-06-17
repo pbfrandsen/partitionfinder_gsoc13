@@ -1,9 +1,15 @@
+import time
 import sys
 import re
 import os
 # import util
 import subprocess
 import shlex
+
+from math import log
+import numpy as np
+from sklearn.preprocessing import scale
+from sklearn.cluster import KMeans
 
 
 _binary_name = 'phyml'
@@ -72,7 +78,10 @@ def rate_cat_likelhood_parser(phyml_lk_file):
 	as the values
 	'''
 	# Open the file and assign it to a variable
-	phyml_lk_file = open(phyml_lk_file, "r")
+	try:
+		phyml_lk_file = open(phyml_lk_file, "r")
+	except IOError:
+		raise IOError("Could not find site likelihood file!")
 	# Start the count of the line number
 	count = 0
 	# Begin site number count
@@ -88,6 +97,10 @@ def rate_cat_likelhood_parser(phyml_lk_file):
 			rate_list = " ".join(line.split()).split(" ")
 			# This could also be accomplished with regex
 			# rate_list = re.sub(' +', ' ', line).split(" ")
+			# Raise error if rate variation is not modeled
+			if len(rate_list) < 4:
+				raise IOError("Rate variation was not modeled in "
+					"PhyML analysis. Please choose > 1 rate category")
 			# Remove first two and last numbers from list
 			rate_list.pop(0)
 			rate_list.pop(0)
@@ -116,9 +129,9 @@ def rate_cat_likelhood_parser(phyml_lk_file):
 	phyml_lk_file.close()
 	return all_rates_dict
 
-
 if __name__ == "__main__":
 	phylip_filename = sys.argv[1]
-	run_phyml("-i simulated_TRUE.phy -m GTR --print_site_lnl")
+	run_phyml("-i " + str(phylip_filename) + " -m GTR -o r --print_site_lnl -c 1")
 	phyml_lk_file = str(phylip_filename) + "_phyml_lk.txt"
-	print rate_cat_likelhood_parser(phyml_lk_file)
+	likelihood_dictionary = rate_cat_likelhood_parser(phyml_lk_file)
+	kmeans(likelihood_dictionary)
