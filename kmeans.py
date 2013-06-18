@@ -157,12 +157,18 @@ def phyml_likelihood_parser(phyml_lk_file):
     10     1.15506e-11     1.28107e-19           3.86378e-11           3.32642e-12           1.46151e-15           0.250024              
     '''
     try:
-        with open(str(phyml_lk_file)) as file_object:
-            # Get rid of the first 6 lines of the file
-            for i in range(6):
-                file_object.next()
+        with open(str(phyml_lk_file)) as phyml_lk_file:
+            phyml_lk_file.next()
+            line2 = phyml_lk_file.next()
+            # Check to see if the file contains rate categories
+            print line2
+            if line2[0] != "P":
+                phyml_lk_file.next()
+            else:
+                for _ in xrange(4):
+                    phyml_lk_file.next()
             # Read in the contents of the file and get rid of whitespace
-            list_of_dicts = list(csv.DictReader(file_object, delimiter = " ", skipinitialspace = True))
+            list_of_dicts = list(csv.DictReader(phyml_lk_file, delimiter = " ", skipinitialspace = True))
     except IOError:
         raise IOError("Could not find the likelihood file!")
     # Right now, when the alignment is over 1,000,000 sites, PhyML
@@ -176,32 +182,44 @@ def phyml_likelihood_parser(phyml_lk_file):
         headers.append(k)
     # Sort the headers into alphabetical order
     headers.sort()
-    # Get rid of the two values that csv imports that we don't need
-    # along with the posterior means we won't use
-    headers.pop(0)
-    headers.pop(-1)
-    headers.pop(-2)
-    # Make a dictionary of sites and likelihoods
-    like_dict = {}
-    for i in list_of_dicts:
-        like_dict[int(i[headers[-1]])] = float(i[headers[0]])
-    # Now get rid of the site likelihoods from the header list
-    headers.pop(0)
-    # Figure out how many rate categories there are
-    num_rate_cat = len(headers) - 1
-    # Now make a dictionary with sites as the keys and a list
-    # of likelihoods under the rate categories as values
-    like_cat_dict = {}
-    for i in list_of_dicts:
-        # Make a list with the rate category likelihoods for each site
-        like_list = []
-        for p in range(num_rate_cat):
-            like_list.append(float(i[headers[p]]))
-        # Now add that list with it's corresponding site to a dictionary
-        like_cat_dict[int(i[headers[-1]])] = like_list
-    # Return a tuple with the site likelihoods and the likelihoods under
-    # different rate categories
-    return like_dict, like_cat_dict
+    # Check if the length of the headers is less than four, if it is
+    # just return the likelihood scores for each site, otherwise, return
+    # site likelihoods and likelihoods under each rate category
+    if len(headers) < 4:
+        headers.pop(0)
+        # Make a dictionary of sites and likelihoods
+        like_dict = {}
+        for i in list_of_dicts:
+            like_dict[int(i[headers[-1]])] = float(i[headers[0]])
+        # Return a dictionary of sites and their likelihoods
+        return like_dict
+    else:
+        # Get rid of the two values that csv imports that we don't need
+        # along with the posterior means we won't use
+        headers.pop(0)
+        headers.pop(-1)
+        headers.pop(-2)
+        # Make a dictionary of sites and likelihoods
+        like_dict = {}
+        for i in list_of_dicts:
+            like_dict[int(i[headers[-1]])] = float(i[headers[0]])
+        # Now get rid of the site likelihoods from the header list
+        headers.pop(0)
+        # Figure out how many rate categories there are
+        num_rate_cat = len(headers) - 1
+        # Now make a dictionary with sites as the keys and a list
+        # of likelihoods under the rate categories as values
+        like_cat_dict = {}
+        for i in list_of_dicts:
+            # Make a list with the rate category likelihoods for each site
+            like_list = []
+            for p in range(num_rate_cat):
+                like_list.append(float(i[headers[p]]))
+            # Now add that list with it's corresponding site to a dictionary
+            like_cat_dict[int(i[headers[-1]])] = like_list
+        # Return a tuple with the site likelihoods and the likelihoods under
+        # different rate categories
+        return like_dict, like_cat_dict
 
 
 def kmeans(dictionary, number_of_ks = 2):
@@ -263,7 +281,7 @@ def kmeans(dictionary, number_of_ks = 2):
 
 if __name__ == "__main__":
     phylip_filename = sys.argv[1]
-    run_phyml("-i " + str(phylip_filename) + " -m GTR -o r --print_site_lnl -c 8")
+    run_phyml("-i " + str(phylip_filename) + " -m GTR -o r --print_site_lnl -c 1")
     phyml_lk_file = str(phylip_filename) + "_phyml_lk.txt"
-    likelihood_dictionary = phyml_likelihood_parser(phyml_lk_file)
-    print kmeans(likelihood_dictionary[1], number_of_ks = 4)
+    print phyml_likelihood_parser(phyml_lk_file)
+    # print kmeans(likelihood_dictionary[1], number_of_ks = 4)
