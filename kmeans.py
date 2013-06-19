@@ -25,7 +25,7 @@ def find_program():
     """Locate the binary ..."""
     # pth = util.program_path
     # pth = os.path.join(pth, _binary_name)
-    # This is a temporary solution to call phyml without messing other PF files
+    # This is a temporary solution to call phyml without messing with other PF files
     pth = _binary_name
 
     # log.debug("Checking for program %s in path %s", _binary_name, pth)
@@ -73,9 +73,13 @@ def run_phyml(command):
         # log.error("%s", stderr)
         raise PhymlError
 
+
 def rate_cat_likelhood_parser(phyml_lk_file):
-    '''Takes the path of the phyml_lk file and returns
-    a dictionary with sites as keys and a list of
+    '''Note: A new parser has been written that uses
+    csv module and also outputs a dictionary of site
+    likelihoods.
+    This function takes the path of the phyml_lk file and 
+    returns a dictionary with sites as keys and a list of
     likelihoods under different rate categories as
     as the values
     '''
@@ -135,7 +139,9 @@ def phyml_likelihood_parser(phyml_lk_file):
     '''Takes a *_phyml_lk.txt file and returns a 
     dictionary of sites and site likelihoods and a 
     dictionary of sites and lists of likelihoods under
-    different rate categories
+    different rate categories. If no rate categories
+    are specified, it will return a dictionary with
+    sites and likelihoods P(D|M) for each site.
     Here is an example of the first few lines of the 
     file that it takes:
     Note : P(D|M) is the probability of site D given the model M (i.e., the site likelihood)
@@ -161,20 +167,20 @@ def phyml_likelihood_parser(phyml_lk_file):
             phyml_lk_file.next()
             line2 = phyml_lk_file.next()
             # Check to see if the file contains rate categories
-            print line2
             if line2[0] != "P":
                 phyml_lk_file.next()
             else:
                 for _ in xrange(4):
                     phyml_lk_file.next()
             # Read in the contents of the file and get rid of whitespace
-            list_of_dicts = list(csv.DictReader(phyml_lk_file, delimiter = " ", skipinitialspace = True))
+            list_of_dicts = list(csv.DictReader(phyml_lk_file, 
+                delimiter = " ", skipinitialspace = True))
     except IOError:
         raise IOError("Could not find the likelihood file!")
     # Right now, when the alignment is over 1,000,000 sites, PhyML
     # merges the site number with the site likelihood, catch that and
     # throw an error
-    if len(list_of_dicts) > 1000000:
+    if len(list_of_dicts) > 999999:
         raise IOError("PhyML file cannot process more than 1 M sites")
     # The headers values change with each run so we need a list of them
     headers = []
@@ -190,7 +196,8 @@ def phyml_likelihood_parser(phyml_lk_file):
         # Make a dictionary of sites and likelihoods
         like_dict = {}
         for i in list_of_dicts:
-            like_dict[int(i[headers[-1]])] = float(i[headers[0]])
+            like_dict[int(i[headers[-1]])] = [float(i[headers[0]])]
+        phyml_lk_file.close()
         # Return a dictionary of sites and their likelihoods
         return like_dict
     else:
@@ -202,7 +209,7 @@ def phyml_likelihood_parser(phyml_lk_file):
         # Make a dictionary of sites and likelihoods
         like_dict = {}
         for i in list_of_dicts:
-            like_dict[int(i[headers[-1]])] = float(i[headers[0]])
+            like_dict[int(i[headers[-1]])] = [float(i[headers[0]])]
         # Now get rid of the site likelihoods from the header list
         headers.pop(0)
         # Figure out how many rate categories there are
@@ -217,9 +224,107 @@ def phyml_likelihood_parser(phyml_lk_file):
                 like_list.append(float(i[headers[p]]))
             # Now add that list with it's corresponding site to a dictionary
             like_cat_dict[int(i[headers[-1]])] = like_list
+        phyml_lk_file.close()
         # Return a tuple with the site likelihoods and the likelihoods under
         # different rate categories
         return like_dict, like_cat_dict
+
+# class RaxmlError(PhylogenyProgramError):
+#     pass
+
+# I couldn't get raxml to run unless I added a "./" before the binary name
+_raxml_binary_name = './raxml'
+if sys.platform == 'win32':
+    _raxml_binary_name += ".exe"
+
+def find_program_raxml():
+    """Locate the binary ..."""
+    # pth = os.path.abspath(__file__)
+
+    # Split off the name and the directory...
+    # pth, notused = os.path.split(pth)
+    # pth, notused = os.path.split(pth)
+    # pth = os.path.join(pth, "programs", _binary_name)
+    # pth = os.path.normpath(pth)
+    # Temporary solution to keep from using other PF programs
+    pth = _raxml_binary_name
+
+    # log.debug("Checking for program %s", _binary_name)
+    # if not os.path.exists(pth) or not os.path.isfile(pth):
+    #     log.error("No such file: '%s'", pth)
+    #     raise RaxmlError
+    # log.debug("Found program %s at '%s'", _binary_name, pth)
+    return pth
+
+_raxml_binary = None
+
+
+def run_raxml(command):
+    global _raxml_binary
+    if _raxml_binary is None:
+        _raxml_binary = find_program_raxml()
+
+    # Add in the command file
+    # log.debug("Running 'raxml %s'", command)
+    command = "\"%s\" %s" % (_raxml_binary, command)
+
+    # Note: We use shlex.split as it does a proper job of handling command
+    # lines that are complex
+    p = subprocess.Popen(
+        shlex.split(command),
+        shell=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
+
+    # Capture the output, we might put it into the errors
+    stdout, stderr = p.communicate()
+    print stdout
+    print stderr
+    # p.terminate()
+
+    # if p.returncode != 0:
+    #     # log.error("RAxML did not execute successfully")
+    #     # log.error("RAxML output follows, in case it's helpful for finding the problem")
+    #     # log.error("%s", stdout)
+    #     # log.error("%s", stderr)
+    #     raise RaxmlError
+
+def raxml_likelihood_parser(perSiteLL_file):
+    '''This functiont takes as input the perSiteLL file
+    from a RAxML -f g run, and returns a dictionary of sites
+    and likelihoods to feed into kmeans.
+    Note: the likelihoods are already logged, so either we
+    should change the kmeans function and tell the PhyML parser
+    to return log likelihoods or we should convert these
+    log likelihoods back to regular likelihood scores 
+    '''
+    # See if you can locate the file, then parse the second line
+    # that contains the log likelihoods. If it isn't found
+    # raise an error
+    try:
+        with open(str(perSiteLL_file)) as perSiteLL_file:
+            line_num = 1
+            for line in perSiteLL_file.readlines():
+                if line_num == 2:
+                    siteLL_list = line.split(" ")
+                line_num += 1
+    except IOError:
+        raise IOError("Could not locate per site log likelihood file")
+    # Get rid of the new line character and the first "tr1" from 
+    # the first element in the list
+    siteLL_list[0] = siteLL_list[0].strip("tr1\t")
+    siteLL_list.pop(-1)
+    num_sites = len(siteLL_list)
+    # Now make a dictionary with sites as values and likelihoods (in a list
+    # for import into kmeans()) as the values
+    site_num = 1
+    siteLL_dict = {}
+    # Add the site and transform the log likelihoods back to likelihoods
+    # so it is adequate to feed into kmeans()
+    for i in siteLL_list:
+        siteLL_dict[site_num] = [10**float(i)]
+        site_num += 1
+    return siteLL_dict
 
 
 def kmeans(dictionary, number_of_ks = 2):
@@ -230,7 +335,7 @@ def kmeans(dictionary, number_of_ks = 2):
     '''
     # Take start time
     start = time.clock()
-    # Read rates into multidimensional list
+    # Read rates into multidimensional (or unidimensional) list
     all_rates_list = []
     for i in range(1, (len(dictionary) + 1)):
         rate_cat_list = dictionary[i]
@@ -280,8 +385,17 @@ def kmeans(dictionary, number_of_ks = 2):
     return centroid_list, cluster_dict
 
 if __name__ == "__main__":
-    phylip_filename = sys.argv[1]
-    run_phyml("-i " + str(phylip_filename) + " -m GTR -o r --print_site_lnl -c 1")
-    phyml_lk_file = str(phylip_filename) + "_phyml_lk.txt"
-    print phyml_likelihood_parser(phyml_lk_file)
+    # phylip_filename = sys.argv[1]
+    # run_phyml("-i " + str(phylip_filename) + " -m GTR -o r --print_site_lnl -c 2")
+    # phyml_lk_file = str(phylip_filename) + "_phyml_lk.txt"
+    # # rate_cat_likelhood_parser(phyml_lk_file)
+    # phyml_likelihood_parser(phyml_lk_file)
+    # likelihood_dictionary = phyml_likelihood_parser(phyml_lk_file)
     # print kmeans(likelihood_dictionary[1], number_of_ks = 4)
+    phylip_filename = sys.argv[1]
+    outfile_command = "testing"
+    run_raxml("-s " + str(phylip_filename) + " -m GTRGAMMA -n " + outfile_command + " -y -p 23456")
+    outfile_command2 = "testing2"
+    run_raxml("-s " + str(phylip_filename) + " -m GTRGAMMA -n " + outfile_command2 + " -f g -p 23456 -z RAxML_parsimonyTree." + outfile_command)
+    likelihood_dict = raxml_likelihood_parser("RAxML_perSiteLLs." + outfile_command2)
+    print kmeans(likelihood_dict)
