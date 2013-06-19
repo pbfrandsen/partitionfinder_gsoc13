@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Phyloinformatics: Extend PartitionFinder to automatically partition DNA and protein alignments : Google Summer of Code 2013 Blog" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Phyloinformatics: Extend PartitionFinder to automatically partition DNA and protein alignments</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/pbfrandsen/partitionfinder_gsoc13">View on GitHub</a>
+
+          <h1 id="project_title">Phyloinformatics: Extend PartitionFinder to automatically partition DNA and protein alignments</h1>
+          <h2 id="project_tagline">Google Summer of Code 2013 Blog</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/pbfrandsen/partitionfinder_gsoc13/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/pbfrandsen/partitionfinder_gsoc13/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h3>
+<a name="the-beginning-of-the-coding-period" class="anchor" href="#the-beginning-of-the-coding-period"><span class="octicon octicon-link"></span></a>The beginning of the coding period</h3>
+
+<p>We are two days into the coding period. Things have progressed smoothly so far. I have a working function for retrieving a Phylip file, running it through PhyML, parsing the site likelihoods, and running them through k-means clustering to split them into two.</p>
+
+<p>The tricky part of today's code was dealing with Python's file object. If there are no rate categories included in the analysis, the output starts on a different line than if rate categories are estimated. Because of this, my parser needed to be robust to both types of files. I found that you cannot use readline() and next() one after the other. However, I needed to read the contents of the second line in order to discover which type of input the file was. I wanted to do something like this:</p>
+
+<pre><code>with open(str(new_file)) as new_file:
+    new_file.next()
+    line2 = new_file.readline()
+    # Check to see which file it is
+    if line2[0] == "P":
+        # Move to line 7
+    else:
+        # Move to line 4
+</code></pre>
+
+<p>After consulting the fine folks at StackOverflow, I discovered that you can set a variable equal to newfile.next() and it will read in a string of the line it is leaving. My code then looked similar to this:</p>
+
+<pre><code>line2 = new_file.next()
+if line2[0] == "P":
+    for _ in xrange(4):
+        new_file.next()
+else:
+    new_file.next()
+</code></pre>
+
+<p>Very nice.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Phyloinformatics: Extend PartitionFinder to automatically partition DNA and protein alignments maintained by <a href="https://github.com/pbfrandsen">pbfrandsen</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
