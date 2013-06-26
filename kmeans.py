@@ -290,7 +290,7 @@ def run_raxml(command):
     #     raise RaxmlError
 
 def raxml_likelihood_parser(perSiteLL_file):
-    '''This functiont takes as input the perSiteLL file
+    '''This functiont takes as input the RAxML_perSiteLLs* file
     from a RAxML -f g run, and returns a dictionary of sites
     and likelihoods to feed into kmeans.
     Note: the likelihoods are already logged, so either we
@@ -324,10 +324,13 @@ def raxml_likelihood_parser(perSiteLL_file):
     for i in siteLL_list:
         siteLL_dict[site_num] = [10**float(i)]
         site_num += 1
+    perSiteLL_file.close()
     return siteLL_dict
 
 
-def kmeans(dictionary, number_of_ks = 2):
+# You can run kmeans in parallel, specify n_jobs as -1 and it will run
+# on all cores available.
+def kmeans(dictionary, number_of_ks = 2, n_jobs = -1):
     '''Take as input a dictionary made up of site numbers as keys
     and lists of rates as values, performs k-means clustering on 
     sites and returns k centroids and a dictionary with k's as keys
@@ -335,7 +338,6 @@ def kmeans(dictionary, number_of_ks = 2):
     '''
     # Take start time
     start = time.clock()
-    # Read rates into multidimensional (or unidimensional) list
     all_rates_list = []
     for i in range(1, (len(dictionary) + 1)):
         rate_cat_list = dictionary[i]
@@ -349,10 +351,14 @@ def kmeans(dictionary, number_of_ks = 2):
     # Use sklearns preprocessing to scale array
     array = scale(array)
     # Call scikit_learn's k-means, use "k-means++" to find centroids
+    # kmeans_out = KMeans(init='k-means++', n_init = 100)
     kmeans_out = KMeans(init='k-means++', n_clusters = number_of_ks, 
         n_init = 100)
     # Perform k-means clustering on the array of site likelihoods
     kmeans_out.fit(array)
+    # Messing around with different outputs from KMeans object
+    # params = kmeans_out.score(array)
+    # print params
     # Retrieve centroids
     centroids = kmeans_out.cluster_centers_
     # Append all centroids to a list to return
@@ -386,7 +392,10 @@ def kmeans(dictionary, number_of_ks = 2):
 
 if __name__ == "__main__":
     # phylip_filename = sys.argv[1]
-    # run_phyml("-i " + str(phylip_filename) + " -m GTR -o r --print_site_lnl -c 2")
+    # start = time.clock()
+    # run_phyml("-i " + str(phylip_filename) + " -m GTR -o r --print_site_lnl -c 4")
+    # stop = time.clock()
+    # print "PhyML took " + str(stop-start) + " seconds!"
     # phyml_lk_file = str(phylip_filename) + "_phyml_lk.txt"
     # # rate_cat_likelhood_parser(phyml_lk_file)
     # phyml_likelihood_parser(phyml_lk_file)
@@ -396,6 +405,10 @@ if __name__ == "__main__":
     outfile_command = "testing"
     run_raxml("-s " + str(phylip_filename) + " -m GTRGAMMA -n " + outfile_command + " -y -p 23456")
     outfile_command2 = "testing2"
+    start = time.clock()
     run_raxml("-s " + str(phylip_filename) + " -m GTRGAMMA -n " + outfile_command2 + " -f g -p 23456 -z RAxML_parsimonyTree." + outfile_command)
+    stop = time.clock()
+    print "RAxML took " + str(stop-start) + " seconds!"
     likelihood_dict = raxml_likelihood_parser("RAxML_perSiteLLs." + outfile_command2)
-    print kmeans(likelihood_dict)
+    print kmeans(likelihood_dict, number_of_ks = 5)
+
