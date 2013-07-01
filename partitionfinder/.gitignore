@@ -1,0 +1,17 @@
+tags
+partition_finder.tmproj
+*.pyc
+.idea
+partfinder.log
+example/analysis
+tests/testing.log
+log.txt
+.lock*
+.waf*
+programs/phyml_source/build/
+.noseids
+example/results.bin
+.DS_Store
+.ropeproject
+analysis
+.cache
