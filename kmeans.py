@@ -75,94 +75,133 @@ def run_phyml(command):
 
 
 def rate_cat_likelhood_parser(phyml_lk_file):
-    '''Note: A new parser has been written that uses
-    csv module and also outputs a dictionary of site
-    likelihoods.
-    This function takes the path of the phyml_lk file and 
-    returns a dictionary with sites as keys and a list of
-    likelihoods under different rate categories as
-    as the values
     '''
+    BRETT SAYS: Format Code so that it flows 80 columns. (your editor will do
+       this for you)
+
+    Note: A new parser has been written that uses csv module and also outputs a
+    dictionary of site likelihoods.
+
+    This function takes the path of the phyml_lk file and returns a dictionary
+    with sites as keys and a list of likelihoods under different rate
+    categories as as the values
+    '''
+
+    # BRETT SAYS: Try to use white space to separate logical pieces in a
+    # function -- and associate comments
+
     # Open the file and assign it to a variable
     try:
         phyml_lk_file = open(phyml_lk_file, "r")
     except IOError:
         raise IOError("Could not find site likelihood file!")
+
+    # BRETT SAYS: If you use good variable names, comments are less
+    # necessary:
+    # count -> line_number
+    # site -> site_number
+    #
     # Start the count of the line number
     count = 0
     # Begin site number count
     site = 1
+
+    # BRETT SAYS: We know you're creating a dictionary! Tell us what will be in
+    # it...
     # Create dictionary for output
     all_rates_dict = {}
+
     # Read the file line by line
     for line in phyml_lk_file.readlines():
+        # BRETT SAYS: If you need a counter (like site), try this:
+        # for line_number, line in enumerate(file.readlines()):
+
         count += 1
         if count > 7 and count < 1000007:
-            # Split the data and objects into a list and remove 
+            # Split the data and objects into a list and remove
             # unnecessary whitespace
             rate_list = " ".join(line.split()).split(" ")
+
             # This could also be accomplished with regex
             # rate_list = re.sub(' +', ' ', line).split(" ")
             # Raise error if rate variation is not modeled
             if len(rate_list) < 4:
                 raise IOError("Rate variation was not modeled in "
                     "PhyML analysis. Please choose > 1 rate category")
+
+            # BRETT SAYS: Why are you doing this? You can just index into the
+            # rate_list, why modify it?
+            # rate_list[-1] == last element
+            # rate_list[-2] == second to last element...
+            #
             # Remove first two and last numbers from list
             rate_list.pop(0)
             rate_list.pop(0)
             rate_list.pop(-1)
+
             # Convert all likelihoods to floats
+            # BRETT SAYS: Maybe do this: rate_list = [float(x) for x in rate_list]
             for i in range(len(rate_list)):
                 rate_list[i] = float(rate_list[i])
+
             # Add site number and rate list to dictionary
             all_rates_dict[site] = rate_list
             site += 1
-        # If there are more than 1,000,000 nts in a phyml_lk.txt 
+
+
+        # If there are more than 1,000,000 nts in a phyml_lk.txt
         # file, the numbers merge with the site likelihoods
         elif count >= 1000007:
             # Split the data
             rate_list = " ".join(line.split()).split(" ")
             # Remove last and first number from list
+            # BRETT SAYS: if you need to modify lists, then you should learn
+            # how to use *slicing*. Google it. You can do this x = x[1:-1]
             rate_list.pop(0)
             rate_list.pop(-1)
             # Convert all likelihoods to floats
             for i in range(len(rate_list)):
                 rate_list[i] = float(rate_list[i])
+
             # Add site number and rate list to dictionary
+            # BRETT SAYS: Why are you using a dict here? They are consecutive
+            # numbers -- just append to a list instead. Get used to ZERO
+            # indexed lists too.
             all_rates_dict[site] = rate_list
             site += 1
     # print all_rates_dict
+    #
     phyml_lk_file.close()
     return all_rates_dict
 
 def phyml_likelihood_parser(phyml_lk_file):
-    '''Takes a *_phyml_lk.txt file and returns a 
-    dictionary of sites and site likelihoods and a 
-    dictionary of sites and lists of likelihoods under
-    different rate categories. If no rate categories
-    are specified, it will return a dictionary with
-    sites and likelihoods P(D|M) for each site.
-    Here is an example of the first few lines of the 
-    file that it takes:
-    Note : P(D|M) is the probability of site D given the model M (i.e., the site likelihood)
-    P(D|M,rr[x]) is the probability of site D given the model M and the relative rate
-    of evolution rr[x], where x is the class of rate to be considered.
-    We have P(D|M) = \sum_x P(x) x P(D|M,rr[x]).
+    '''
+    Takes a *_phyml_lk.txt file and returns a dictionary of sites and site
+    likelihoods and a dictionary of sites and lists of likelihoods under
+    different rate categories. If no rate categories are specified, it will
+    return a dictionary with sites and likelihoods P(D|M) for each site.
 
+    Here is an example of the first few lines of the file that it takes:
 
-    Site   P(D|M)          P(D|M,rr[1]=2.6534)   P(D|M,rr[2]=0.2289)   P(D|M,rr[3]=0.4957)   P(D|M,rr[4]=1.0697)   Posterior mean        
-    1      2.07027e-12     1.3895e-19            6.2676e-12            1.2534e-12            1.21786e-15           0.273422              
-    2      1.8652e-07      2.05811e-19           6.73481e-07           4.14575e-09           7.97623e-14           0.23049               
-    3      4.48873e-15     1.37274e-19           7.11221e-15           9.11826e-15           9.21848e-17           0.382265              
-    4      3.38958e-10     1.31413e-19           1.18939e-09           4.20659e-11           5.86537e-15           0.237972              
-    5      8.29969e-17     1.11587e-19           3.1672e-17            2.52183e-16           1.9722e-17            0.502077              
-    6      9.24579e-09     1.59891e-19           3.31101e-08           4.79946e-10           2.59524e-14           0.232669              
-    7      3.43996e-10     2.1917e-19            1.19544e-09           5.43128e-11           1.22969e-14           0.240455              
-    8      4.43262e-13     1.1447e-19            1.32148e-12           2.8874e-13            3.7386e-16            0.27685               
-    9      3.42513e-11     1.70149e-19           1.14227e-10           1.02103e-11           4.05239e-15           0.250765              
-    10     1.15506e-11     1.28107e-19           3.86378e-11           3.32642e-12           1.46151e-15           0.250024              
+    Note : P(D|M) is the probability of site D given the model M (i.e., the
+    site likelihood) P(D|M,rr[x]) is the probability of site D given the model
+    M and the relative rate of evolution rr[x], where x is the class of rate to
+    be considered.  We have P(D|M) = \sum_x P(x) x P(D|M,rr[x]).
+
+    Site   P(D|M)          P(D|M,rr[1]=2.6534)   P(D|M,rr[2]=0.2289)   P(D|M,rr[3]=0.4957)   P(D|M,rr[4]=1.0697)   Posterior mean
+    1      2.07027e-12     1.3895e-19            6.2676e-12            1.2534e-12            1.21786e-15           0.273422
+    2      1.8652e-07      2.05811e-19           6.73481e-07           4.14575e-09           7.97623e-14           0.23049
+    3      4.48873e-15     1.37274e-19           7.11221e-15           9.11826e-15           9.21848e-17           0.382265
+    4      3.38958e-10     1.31413e-19           1.18939e-09           4.20659e-11           5.86537e-15           0.237972
+    5      8.29969e-17     1.11587e-19           3.1672e-17            2.52183e-16           1.9722e-17            0.502077
+    6      9.24579e-09     1.59891e-19           3.31101e-08           4.79946e-10           2.59524e-14           0.232669
+    7      3.43996e-10     2.1917e-19            1.19544e-09           5.43128e-11           1.22969e-14           0.240455
+    8      4.43262e-13     1.1447e-19            1.32148e-12           2.8874e-13            3.7386e-16            0.27685
+    9      3.42513e-11     1.70149e-19           1.14227e-10           1.02103e-11           4.05239e-15           0.250765
+    10     1.15506e-11     1.28107e-19           3.86378e-11           3.32642e-12           1.46151e-15           0.250024
     '''
     try:
+        # BRETT SAYS: It is not clear what you are doing here...
         with open(str(phyml_lk_file)) as phyml_lk_file:
             phyml_lk_file.next()
             line2 = phyml_lk_file.next()
@@ -173,24 +212,30 @@ def phyml_likelihood_parser(phyml_lk_file):
                 for _ in xrange(4):
                     phyml_lk_file.next()
             # Read in the contents of the file and get rid of whitespace
-            list_of_dicts = list(csv.DictReader(phyml_lk_file, 
+            list_of_dicts = list(csv.DictReader(phyml_lk_file,
                 delimiter = " ", skipinitialspace = True))
     except IOError:
         raise IOError("Could not find the likelihood file!")
+
     # Right now, when the alignment is over 1,000,000 sites, PhyML
     # merges the site number with the site likelihood, catch that and
     # throw an error
     if len(list_of_dicts) > 999999:
         raise IOError("PhyML file cannot process more than 1 M sites")
+
     # The headers values change with each run so we need a list of them
     headers = []
     for k in list_of_dicts[0]:
         headers.append(k)
     # Sort the headers into alphabetical order
     headers.sort()
+
     # Check if the length of the headers is less than four, if it is
     # just return the likelihood scores for each site, otherwise, return
     # site likelihoods and likelihoods under each rate category
+    #
+    # BRETT SAYS: above you tell us what the code does. I can read that though,
+    # what I need to know is WHY...
     if len(headers) < 4:
         headers.pop(0)
         # Make a dictionary of sites and likelihoods
@@ -223,6 +268,7 @@ def phyml_likelihood_parser(phyml_lk_file):
             for p in range(num_rate_cat):
                 like_list.append(float(i[headers[p]]))
             # Now add that list with it's corresponding site to a dictionary
+            # BRETT SAYS: This looks complex.
             like_cat_dict[int(i[headers[-1]])] = like_list
         phyml_lk_file.close()
         # Return a tuple with the site likelihoods and the likelihoods under
@@ -290,18 +336,19 @@ def run_raxml(command):
     #     raise RaxmlError
 
 def raxml_likelihood_parser(perSiteLL_file):
-    '''This functiont takes as input the RAxML_perSiteLLs* file
-    from a RAxML -f g run, and returns a dictionary of sites
-    and likelihoods to feed into kmeans.
-    Note: the likelihoods are already logged, so either we
-    should change the kmeans function and tell the PhyML parser
-    to return log likelihoods or we should convert these
-    log likelihoods back to regular likelihood scores 
+    '''
+    This functiont takes as input the RAxML_perSiteLLs* file from a RAxML -f g
+    run, and returns a dictionary of sites and likelihoods to feed into kmeans.
+
+    Note: the likelihoods are already logged, so either we should change the
+    kmeans function and tell the PhyML parser to return log likelihoods or we
+    should convert these log likelihoods back to regular likelihood scores
     '''
     # See if you can locate the file, then parse the second line
     # that contains the log likelihoods. If it isn't found
     # raise an error
     try:
+        # BRETT SAYS: SUPER ugly inconsistent variable name!
         with open(str(perSiteLL_file)) as perSiteLL_file:
             line_num = 1
             for line in perSiteLL_file.readlines():
@@ -310,11 +357,13 @@ def raxml_likelihood_parser(perSiteLL_file):
                 line_num += 1
     except IOError:
         raise IOError("Could not locate per site log likelihood file")
-    # Get rid of the new line character and the first "tr1" from 
+
+    # Get rid of the new line character and the first "tr1" from
     # the first element in the list
     siteLL_list[0] = siteLL_list[0].strip("tr1\t")
     siteLL_list.pop(-1)
     num_sites = len(siteLL_list)
+
     # Now make a dictionary with sites as values and likelihoods (in a list
     # for import into kmeans()) as the values
     site_num = 1
@@ -332,7 +381,7 @@ def raxml_likelihood_parser(perSiteLL_file):
 # on all cores available.
 def kmeans(dictionary, number_of_ks = 2, n_jobs = -1):
     '''Take as input a dictionary made up of site numbers as keys
-    and lists of rates as values, performs k-means clustering on 
+    and lists of rates as values, performs k-means clustering on
     sites and returns k centroids and a dictionary with k's as keys
     and lists of sites belonging to that k as values
     '''
@@ -352,7 +401,7 @@ def kmeans(dictionary, number_of_ks = 2, n_jobs = -1):
     array = scale(array)
     # Call scikit_learn's k-means, use "k-means++" to find centroids
     # kmeans_out = KMeans(init='k-means++', n_init = 100)
-    kmeans_out = KMeans(init='k-means++', n_clusters = number_of_ks, 
+    kmeans_out = KMeans(init='k-means++', n_clusters = number_of_ks,
         n_init = 100)
     # Perform k-means clustering on the array of site likelihoods
     kmeans_out.fit(array)
@@ -369,8 +418,8 @@ def kmeans(dictionary, number_of_ks = 2, n_jobs = -1):
     rate_categories = kmeans_out.labels_
     # Create dictionary of sites and the cluster they've been assigned to
     site_clus_dict = {}
-    char_number = 1    
-    # Loop through list of rate categories and add them to dictionary 
+    char_number = 1
+    # Loop through list of rate categories and add them to dictionary
     # with associated character
     for i in rate_categories:
         site_clus_dict[char_number] = i
