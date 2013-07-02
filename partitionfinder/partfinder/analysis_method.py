@@ -27,6 +27,9 @@ import submodels
 import subset
 from analysis import Analysis, AnalysisError
 import neighbour
+import kmeans
+import raxml
+import phyml
 
 class UserAnalysis(Analysis):
 
@@ -301,6 +304,26 @@ class RelaxedClusteringAnalysis(Analysis):
 
         self.cfg.reporter.write_best_scheme(self.results)
 
+class SplitSubsets(Analysis):
+    def do_analysis(self):
+        partnum = len(self.cfg.user_subsets)
+        start_description = range(partnum)
+        log.info("Performing subset splitting using kmeans")
+        # Create the first scheme
+        start_scheme = scheme.create_scheme(self.cfg, "start_scheme", start_description)
+        for i in start_scheme:
+            # Save the alignment path
+            i.make_alignment(self.cfg, self.alignment)
+            phylip_file = i.alignment_path
+            print phylip_file
+            # Add option to output likelihoods, *raxml version takes more 
+            # modfying of the commands in the analyse function
+            phyml.analyse("GTR", str(phylip_file), "./analysis/start_tree/filtered_source.phy_phyml_tree.txt", "unlinked", "--print_site_lnl")
+            phyml_lk_file = str(phylip_file) + "_phyml_lk_GTR.txt"
+            likelihood_dictionary = kmeans.phyml_likelihood_parser(phyml_lk_file)
+            kmeans.kmeans(likelihood_dictionary)
+        print start_scheme
+
 def choose_method(search):
     if search == 'all':
         method = AllAnalysis
@@ -312,6 +335,8 @@ def choose_method(search):
         method = StrictClusteringAnalysis
     elif search == 'rcluster':
         method = RelaxedClusteringAnalysis
+    elif search == 'paul':
+        method = SplitSubsets
     else:
         log.error("Search algorithm '%s' is not yet implemented", search)
         raise AnalysisError
